@@ -4,6 +4,7 @@
 
 ;; Author: ril <fenri.nh@gmail.com>
 ;; Keywords: Re:VIEW, ReVIEW Starter
+;; Package-Requires: ((emacs "26.1"))
 ;; URL: https://github.com/fenril058/review-starter-el
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -25,18 +26,15 @@
 ;;
 ;; This package support Re:VIEW Starter expnasion, if
 ;; `review-starter-use-expansion' is non-nil.
-;; Not fully but almost compatible with `review-mode.el'
-;; (https://github.com/kmuto/review-el/).
 ;;
 ;; See the README.md file for details.
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'outline)
-(require 'imenu)
 (require 'font-lock)
 (require 'compile)
-(require 'review-starter-face)
 
 
 ;;;
@@ -236,9 +234,169 @@ An alternative value is \" . \", if you use a font with a narrow period."
   "Syntax table used while in Re:VIEW starter mode.")
 
 (eval-and-compile
+  (defconst review-starter-escape "\\"
+    "The escape character of Re:VIEW.")
+
+  (defconst review-starter-regexp-comment-start
+    "^#@#"
+    "Regular expression matches Re:VIEW comment opening.")
+
+  (defconst review-starter-regexp-code
+    "\\(@<code>{\\)\\(.*?[^\\]\\)\\(}\\)"
+    "Regular expression for matching inline code fragments.")
+
+  (defconst review-starter-regexp-list
+    "^ \\(\\*\\{1,5\\}\\|[0-9]\\{1,3\\}\\.\\) "
+    "Regular expression for matching list items of Re:VIEW.")
+
+  (defconst review-starter-regexp-list+
+    "^ \\(-\\{1,5\\} \\(?:.+\\)\\) "
+    "Regular expression for matching list items of Re:VIEW Starter.
+
+Starter拡張の \"- A. 箇条書き\" 記法にマッチする正規表現.")
+
+  (defconst review-starter-regexp-bold
+    "\\(@<\\(?:b\\|strong\\)>\\)\\({.*?[^\\]\\)\\(}\\)"
+    "Regular expression for matching bold text." )
+
+  (defconst review-starter-regexp-bold+
+    "\\(@<\\(?:[bB]\\|strong\\)>\\)\\({.*?[^\\]\\)\\(}\\)"
+    "Regular expression for matching bold text of Re:VIEW Starter.
+
+Starter拡張の「@<B>{強調}」を含む太字系の表現にマッチする正規表現." )
+
+  (defconst review-starter-regexp-italic
+    "@<i>{.*?}"
+    "Regular expression for matching italic text.")
+
+  (defconst review-starter-regexp-block-begin
+    "\\(^//.+?{$\\)"
+    "Regular expression for matching the beginning of block.")
+
+  (defconst review-starter-regexp-block-end
+    "\\(^//}$\\)"
+    "Regular expression for matching the end of block.")
+
+  (defconst review-starter-regexp-block
+    (concat review-starter-regexp-block-begin
+            "\\(\\(?:.\\|\n\\)*?\\)"
+            review-starter-regexp-block-end)
+    "Regular expression for matching any block lines.")
+
+  (defconst review-starter-regexp-texequation-block-begin
+    "\\(^//texequation{$\\)"
+    "Regular expression for matching the beginning of a texequation block.")
+
+  (defconst review-starter-regexp-texequation-block
+    (concat review-starter-regexp-texequation-block-begin
+            "\\(\\(?:.\\|\n\\)*?\\)"
+            review-starter-regexp-block-end)
+    "Regular expression for matching a texequation block.")
+
+  (defconst review-starter-regexp-code-block-begin
+    "\\(^//\\(?:em\\)?list\\(?:num\\)?{$\\)"
+    "Regular expression for matching the beginning of a code block.")
+
+  (defconst review-starter-regexp-code-block
+    (concat review-starter-regexp-code-block-begin
+            "\\(\\(?:.\\|\n\\)*?\\)"
+            review-starter-regexp-block-end)
+    "Regular expression for matching a code block.")
+
+  (defconst review-starter-regexp-quote-block-begin
+    "\\(^//quote{$\\)"
+    "Regular expression for matching the beginning of a quote block.")
+
+  (defconst review-starter-regexp-quote-block
+    (concat review-starter-regexp-quote-block-begin
+            "\\(\\(?:.\\|\n\\)*?\\)"
+            review-starter-regexp-block-end)
+    "Regular expression for matching a quote block.")
+  )
+
+(defconst rereview-starter-regexp-link
+  (concat "@<" (regexp-opt '("href" "hlink")) ">{.*?[^\\]}")
+  "Regular expression for a inline link.")
+
+(defvar review-starter--syntax-properties
+  (list 'review-starter-list-item         nil
+        'review-starter-block-begin       nil
+        'review-starter-block             nil
+        'review-starter-block-end         nil
+        'review-starter-code-block        nil
+        'review-starter-quote-block       nil
+        'review-starter-texequation-block nil
+        'review-starter-heading           nil
+        'review-starter-heading-1         nil
+        'review-starter-heading-2         nil
+        'review-starter-heading-3         nil
+        'review-starter-heading-4         nil
+        'review-starter-heading-5         nil
+        )
+  "Property list of all Re:VIEW Starter syntactic properties.")
+
+(defun review-starter-remove-text-properties (begin end)
+  "Rmove the properties from text from BEGIN to END.
+The properties are the all properties in
+`review-starter--syntax-properties'."
+  (remove-text-properties begin end
+                          review-starter--syntax-properties))
+
+(defun review-starter-put-text-property (begin end property)
+  "Put PROPERTY whose value is (BEGIN END) to text from  BEGIN to END.
+BEGIN and END are the points in the current buffer."
+  (put-text-property begin end
+                     property (list begin end)))
+
+(defun review-starter-remove-then-put-text-property (begin end property)
+  "Remove the properties then put PROPERTY to text from BEGIN to END.
+BEGIN and END are the points in the current buffer, and the value
+of PROPERTY is (BEGIN . END)."
+  (review-starter-remove-text-properties begin end)
+  (review-starter-put-text-property begin end property))
+
+(defun review-starter-remove-then-put-text-property-to-nth-match (n property)
+  "Put PROPERTY to N th match string.
+This is intended to used in `syntax-propertize-precompile-rules'."
+  (review-starter-remove-then-put-text-property
+   (match-beginning n) (match-end n) property)
+  )
+
+(eval-and-compile
   (defconst review-starter-syntax-propertize-rules
     (syntax-propertize-precompile-rules
-     ("^#@#" (0 "<")))
+     (review-starter-regexp-comment-start (0 "<"))
+     (review-starter-regexp-list
+      (1 (ignore
+          (review-starter-remove-then-put-text-property-to-nth-match
+           1 'review-starter-list-item))))
+     (review-starter-regexp-texequation-block
+      (1 (ignore
+          (review-starter-remove-then-put-text-property-to-nth-match
+           1 'review-starter-block-begin)
+          ))
+       (2 (ignore
+          (review-starter-remove-then-put-text-property-to-nth-match
+           2 'review-starter-texequation-block)
+          ))
+      (3 (ignore
+          (review-starter-remove-then-put-text-property-to-nth-match
+           3 'review-starter-block-end)
+          )))
+     (review-starter-regexp-block
+      (1 (ignore
+          (review-starter-remove-then-put-text-property-to-nth-match
+           1 'review-starter-block-begin)
+          ))
+      (2 (ignore
+          (review-starter-remove-then-put-text-property-to-nth-match
+           2 'review-starter-block)
+          ))
+      (3 (ignore
+          (review-starter-remove-then-put-text-property-to-nth-match
+           3 'review-starter-block-end)
+          )))
+     )
     "Syntax-propertize rules Re:VIEW.
 These have to be run via `review-starter-mode-syntax-propertize'")
 
@@ -257,29 +415,7 @@ These have to be run via `review-starter-mode-syntax-propertize'"))
 ;;;
 ;;; Font-Lock support
 ;;;
-(defconst review-starter-regexp-block-begin
-  "\\(^//.+?{\n\\)"
-  "Regular expression for matching the beginning of block.")
-
-(defconst review-starter-regexp-block-end
-  "\\(^//}$\\)"
-  "Regular expression for matching the end of block.")
-
-(defconst review-starter-regexp-block
-  (concat review-starter-regexp-block-begin
-          "\\(\\(?:.\\|\n\\)*?\\)"
-          review-starter-regexp-block-end)
-  "Regular expression for matching any block lines.")
-
-(defconst review-starter-regexp-texequation-block-begin
-  "\\(^//texequation{\n\\)"
-  "Regular expression for matching the beginning of a texequation block.")
-
-(defconst review-starter-regexp-texequation-block
-  (concat review-starter-regexp-texequation-block-begin
-          "\\(\\(?:.\\|\n\\)*?\\)"
-          review-starter-regexp-block-end)
-  "Regular expression for matching a texequation block.")
+(require 'review-starter-face)
 
 (defconst review-starter-regexp-reference
   (concat "@<"
@@ -291,8 +427,68 @@ These have to be run via `review-starter-mode-syntax-propertize'"))
 (defvar review-starter-font-lock-keywords nil
   "Expressions to highlight in Re:VIEW Starter mode.")
 
-(defvar review-starter-font-lock-keywords-default
-`(("^= .*" . 'review-starter-header-face)
+(defvar review-starter-font-lock-keywords-default nil
+  "Default expressions to highlight in Re:VIEW Starter mode.
+
+Re:VIEW Starter拡張を含まないfont-lock-keywords.")
+
+(defvar review-starter-font-lock-keywords-default+ nil
+  "Default expressions to highlight in Re:VIEW Starter mode.
+
+Re:VIEW Starter拡張も含んだfont-lock-keywords.")
+
+(defun review-starter-match-propertized-text (property last)
+  "Match text with PROPERTY from point to LAST.
+Restore match data previously stored in PROPERTY.
+
+Originally derived form `markdown-match-propertized-text'."
+  (let ((saved (get-text-property (point) property))
+        pos)
+    (unless saved
+      (setq pos (next-single-property-change (point) property nil last))
+      (unless (= pos last)
+        (setq saved (get-text-property pos property))))
+    (when saved
+      (set-match-data saved)
+      ;; Step at least one character beyond point. Otherwise
+      ;; `font-lock-fontify-keywords-region' infloops.
+      (goto-char (min (1+ (max (match-end 0) (point)))
+                      (point-max)))
+      saved)))
+
+(defun review-starter-match-propertized-text (property last)
+  "Match text with PROPERTY from point to LAST.
+Restore match data previously stored in PROPERTY.
+
+Originally derived form `markdown-match-propertized-text'."
+  (let ((saved (get-text-property (point) property))
+        pos)
+    (unless saved
+      (setq pos (next-single-property-change (point) property nil last))
+      (unless (= pos last)
+        (setq saved (get-text-property pos property))))
+    (when saved
+      (set-match-data saved)
+      ;; Step at least one character beyond point. Otherwise
+      ;; `font-lock-fontify-keywords-region' infloops.
+      (goto-char (min (1+ (max (match-end 0) (point)))
+                      (point-max)))
+      saved)))
+
+(defun review-starter-match-block-begin (last)
+  "Match beginning of block.
+Match text with `review-starter-block-begin' property from point
+to LAST."
+  (review-starter-match-propertized-text 'review-starter-block-begin last))
+
+(defun review-starter-match-block-end (last)
+  "Match end of block.
+Match text with `review-starter-block-end' property from point to
+LAST."
+  (review-starter-match-propertized-text 'review-starter-block-end last))
+
+(setq review-starter-font-lock-keywords-default
+      `(("^= .*" . 'review-starter-header-face)
         ("^==\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header1-face)
         ("^===\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header2-face)
         ("^====\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header3-face)
@@ -376,31 +572,20 @@ These have to be run via `review-starter-mode-syntax-propertize'"))
          (0 'review-starter-warning-face t))
         ("^#@warn.*"
          (0 'review-starter-warning-face t))
-        (,review-starter-regexp-block
-         (1 font-lock-function-name-face)
-         (3 font-lock-function-name-face))
-        (,review-starter-regexp-texequation-block
-         (1 font-lock-function-name-face)
-         (2 font-lock-string-face)
-         (3 font-lock-function-name-face)))
-  "Default expressions to highlight in Re:VIEW Starter mode.
+        (review-starter-match-block-begin . ((0 font-lock-function-name-face)))
+        (review-starter-match-block-end .  ((0 font-lock-function-name-face)))
+        ))
 
-Re:VIEW Starter拡張を含まないfont-lock-keywords.")
-
-(defvar review-starter-font-lock-keywords-default+
-  (append review-starter-font-lock-keywords-default
-          '(("\\(@<B>{\\)\\(.*?[^\\]\\)\\(}\\)"
-             (1 font-lock-variable-name-face t)
-             (2 'review-starter-bold-face append)
-             (3 font-lock-variable-name-face t))
-            ;; `font-lock-default'のkeyword-onlyがnilでも #@---
-            ;; の # までしか `font-lock-comment-delimiter-face' に
-            ;; ならなかったので追加.
-            ("^#@---"
-             (0 font-lock-comment-delimiter-face t))))
-  "Default expressions to highlight in Re:VIEW Starter mode.
-
-Re:VIEW Starter拡張も含んだfont-lock-keywords.")
+(setq review-starter-font-lock-keywords-default+
+      (append review-starter-font-lock-keywords-default
+              '(("\\(@<B>{\\)\\(.*?[^\\]\\)\\(}\\)"
+                 (1 font-lock-function-name-face t)
+                 (2 'review-starter-bold-face append))
+                ;; font-lock defaultのkeyword-onlyがnilでも
+                ;; これがないと#@---の #
+                ;; までしか faceがつかない.
+                ("^#@---"
+                 (0 font-lock-comment-delimiter-face t)))))
 
 (defun review-starter-syntactic-face (state)
   "Return font-lock face for characters with given STATE.
@@ -415,9 +600,9 @@ See `font-lock-syntactic-face-function' for details."
 ;;; Outline support
 ;;;
 (defvar review-starter-section-alist
-  '(("=" . 0)
-    ("==" . 1)
-    ("===" . 2)
+  '(("=" . 0)                          ; chapter
+    ("==" . 1)                         ; section
+    ("===" . 2)                        ; subsection
     ("====" . 3)
     ("=====" . 4)
     ("======" . 5))
@@ -432,20 +617,14 @@ This matches =[nonum], ==[column]{label}, and ==={label} etc.
 allowed in Re:VIEW format.")
 
 (defun review-starter-outline-level ()
-  "Return the outline level.
-
-This function was originally derived from `latex-outline-level'
-from `tex-mode.el'."
+  "Return the outline level."
   (interactive)
   (if (looking-at review-starter-outline-regexp)
       (1+ (or (cdr (assoc (match-string 1) review-starter-section-alist)) -1))
     1000))
 
 (defun review-starter-current-defun-name ()
-  "Return the name of the Re:VIEW section or chapter at point, or nil.
-
-This function was originally derived from
-`tex-current-defun-name' from `tex-mode.el'."
+  "Return the name of the Re:VIEW section or chapter at point, or nil."
   (save-excursion
     (when (re-search-backward review-starter-outline-regexp nil t)
       (goto-char (match-end 0))
@@ -458,10 +637,7 @@ This function was originally derived from
 ;;; Imenu support
 ;;;
 (defun review-starter-imenu-create-index ()
-  "Generate an alist for imenu from a Re:VIEW buffer.
-
-This function was originally derived from
-`latex-imenu-create-index' from `tex-mode.el'."
+  "Generate an alist for imenu from a Re:VIEW buffer."
   (let (menu)
     (save-excursion
       (goto-char (point-min))
@@ -492,11 +668,6 @@ This function was originally derived from
 ;;;
 ;;; Commands
 ;;;
-(defun review-starter-show-version ()
-  "Show the version number in the minibuffer."
-  (interactive)
-  (message "review-starter-mode, version %s" review-starter-mode-version))
-
 (defun review-starter-block (arg)
   "Make Re:VIEW block (//blockname[...][...]{... //} pair).
 With optional ARG, modify current block.
@@ -524,10 +695,10 @@ With optional ARG, modify current block.
 (defun review-starter-modify-block (pattern)
   "Modify current block.
 
-[WiP] 現在の実装だと, 現在位置の一つ前のタグをPATTERNに変更します.
-将来的には`get-text-property'をつかって今blockの中にいるかを判定
-し, blockにいるときはそのblockを変更し、そうでないときはエラーメッ
-セージを出すようにする予定です."
+現在の実装だと, 現在位置の一つ前のタグをPATTERNに変更します.  将
+来的には`get-text-property'をつかって今blockの中にいるかを判定し,
+blockにいるときはそのblockを変更し、そうでないときはエラーメッセー
+ジを出すようにする予定です."
   (save-excursion
     (if (re-search-backward (concat "//" ".+{"))
         (replace-match (concat "//" pattern "{"))
@@ -684,8 +855,8 @@ With optional ARG, modify current block.
 (defun review-starter-math-region ()
   "選択領域を数式タグ(@<m>)で囲みます.
 
-[WiP] 選択領域に\"}\"が含まれる場合はフェンスに$$を使い. そうでな
-いときは$を使うが, この使い分けはいらないかも？"
+選択領域に\"}\"が含まれる場合はフェンスに$$を使い.
+そうでないときは$を使うが, この使い分けはいらないかも？"
   (interactive)
   (if (region-active-p)
       (save-restriction
@@ -1078,7 +1249,6 @@ with an argument, unconditionally call `review-starter-insert-heading'.
 ;;;
 (defvar review-starter-mode-map
   (let ((map (make-sparse-keymap)))
-    ;; Most frequently used commands
     (define-key map "\C-c\C-c" 'review-starter-compile)
     (define-key map "\C-c\C-e" 'review-starter-block)
     (define-key map "\C-c\C-i" 'review-starter-inline-region)
@@ -1119,7 +1289,7 @@ with an argument, unconditionally call `review-starter-insert-heading'.
     (define-key map "\C-c\C-fn" 'review-starter-index-region)
     (define-key map "\C-c\C-f\C-n" 'review-starter-index-region)
     (define-key map "\C-c\C-w" 'review-starter-insert-index)
-    (define-key map "\C-c\C-y" 'review-starter-index-change) ; 使う?
+    (define-key map "\C-c\C-y" 'review-starter-index-change) ; 使わない?
     ;; 全角文字の挿入 (Major Modeの規約違反ではある. Minor Modeにする?)
     (define-key map "\C-c8" 'review-starter-zenkaku-mapping-lparenthesis)
     (define-key map "\C-c9" 'review-starter-zenkaku-mapping-rparenthesis)
@@ -1136,6 +1306,7 @@ with an argument, unconditionally call `review-starter-insert-heading'.
     (define-key map "\C-c " 'review-starter-zenkaku-mapping-space)
     (define-key map "\C-c:" 'review-starter-zenkaku-mapping-colon)
     ;; Misc
+    (define-key map "\M-\C-m" 'review-starter-meta-return)
     (define-key map "\C-c\C-p" 'review-starter-insert-header)
     (define-key map "\C-c\C-m" 'review-starter-insert-br)
     (define-key map "\C-c<" 'review-starter-opentag)
@@ -1143,7 +1314,13 @@ with an argument, unconditionally call `review-starter-insert-heading'.
     (define-key map "\C-c\C-b" 'review-starter-balloon-comment)
     (define-key map "\C-c1" 'review-starter-search-uri)
     map)
-  "Keymap for `revew-mode'.")
+  "Keymap for `revew-mode'.
+
+メジャーモードのキーマップ内でバインドが許さるキーシーケンスは,
+Ctrl-c に続けて, コントロール文字, 数字, }, <, >, :, ; である.
+
+See:
+https://ayatakesi.github.io/lispref/28.1/html/Major-Mode-Conventions.html")
 
 
 ;;;
@@ -1162,8 +1339,23 @@ with an argument, unconditionally call `review-starter-insert-heading'.
   (setq-local indent-tabs-mode 1)
   (setq-local tab-width 4)
 
+  ;; Indentation (from Markdown)
+  ;; (setq-local indent-line-function markdown-indent-function)
+  ;; (setq-local indent-region-function #'markdown--indent-region)
+
+  ;; Electric quoting (from Markdown)p
+  ;; (add-hook 'electric-quote-inhibit-functions
+  ;;           #'markdown--inhibit-electric-quote nil :local)
+
+  ;; Sentence (from TeX)
+  ;; (setq-local sentence-end-base "[.?!…‽][]\"'”’)}»›*_`~]*")
   ;; Regexp isearch should accept newline and formfeed as whitespace.
   (setq-local search-whitespace-regexp "[ \t\r\n\f]+")
+  ;; A line containing just $$ is treated as a paragraph separator.
+  ;; (setq-local paragraph-start "[ \t]*$\\|[\f\\%]\\|[ \t]*\\$\\$")
+  ;; A line starting with $$ starts a paragraph,
+  ;; but does not separate paragraphs if it has more stuff on it.
+  ;; (setq-local paragraph-separate "[ \t]*$\\|[\f\\%]\\|[ \t]*\\$\\$[ \t]*$")
 
   ;; Outline
   (setq-local add-log-current-defun-function #'review-starter-current-defun-name)
@@ -1175,7 +1367,14 @@ with an argument, unconditionally call `review-starter-insert-heading'.
 
   ;; Comments
   (setq-local comment-start "#@# ")
+  ;; (setq-local comment-end "\n")
+  ;; (setq-local comment-add 0)
+  ;; (setq-local comment-start-skip "#@#+\\s-*") ; WiP!!!
   (setq-local parse-sexp-ignore-comments t)
+  ;; (setq-local comment-column 0)
+  ;; (setq-local comment-auto-fill-only-comments nil)
+  ;; (setq-local comment-use-syntax t)
+  ;; (setq-local comment-region-function #'latex--comment-region)
   (setq-local comment-style 'plain)
 
   ;; Syntax
@@ -1190,15 +1389,26 @@ with an argument, unconditionally call `review-starter-insert-heading'.
                   review-starter-font-lock-keywords-default+
                 review-starter-font-lock-keywords-default))
   (setq-local font-lock-defaults
-              '((review-starter-font-lock-keywords)
-    	        nil nil nil nil
+              '((review-starter-font-lock-keywords) ; KEYWORDS
+    	        nil nil nil nil ; KEYWORS-ONLY, CASE-FOLD SYNTAX-ALIST
+    	        ;; (Variable . VALUE)
                 (font-lock-multiline . t)
-    	        (font-lock-mark-block-function . mark-paragraph)
+    	        (font-lock-mark-block-function . mark-paragraph) ; default of text-mode?
+                (font-lock-syntactic-keywords . nil)
+                ;; (font-lock-fontify-buffer-function . jit-lock-refontify) ; default
+                ;; (font-lock-unfontify-buffer-function . font-lock-default-unfontify-buffer) ; default
+                ;; (font-lock-fontify-region-function . font-lock-default-fontify-region) ; default
+                ;; (font-lock-unfontify-region-function . font-lock-default-unfontify-region) ; default
+                ;; (font-lock-extra-managed-props . nil) ; default
+                ;; (font-lock-inhibit-thing-lock . nil) ; default
     	        (font-lock-syntactic-face-function . review-starter-syntactic-face)
+    	        ;; (font-lock-unfontify-region-function . review-starter-font-lock-unfontify-region)
                 ))
 
   ;; Commands
   (setq-local compile-command review-starter-default-compile-command)
+  ;; (setq beginning-of-defun-function 'review-starter-beginning-of-block) ; 未実装
+  ;; (setq end-of-defun-function 'review-starter-beginning-of-block) ; 未実装
 
   ;; keymap
   (use-local-map review-starter-mode-map)
@@ -1208,7 +1418,6 @@ with an argument, unconditionally call `review-starter-insert-heading'.
   ;; Misc
   (when review-starter-use-whitespace-mode
     (whitespace-mode 1))
-
   ;; hook
   (run-hooks 'review-starter-mode-hook))
 
@@ -1216,6 +1425,86 @@ with an argument, unconditionally call `review-starter-insert-heading'.
 ;; Associate .re files with review-starter-mode
 ;;;###autoload
 (setq auto-mode-alist (append '(("\\.re$" . review-starter-mode)) auto-mode-alist))
+
+
+;;;
+;;; For debug & Information (あとで消す)
+;;;
+(defsubst review-starter-in-comment-p (&optional pos)
+  "Return non-nil if POS is in a comment.
+If POS is not given, use point instead."
+  (nth 4 (syntax-ppss (or pos (point)))))
+
+(defun review-starter--face-p (pos faces)
+  "Return non-nil if face of POS contain FACES."
+  (let ((face-prop (get-text-property pos 'face)))
+    (if (listp face-prop)
+        (cl-loop for face in face-prop
+                 thereis (memq face faces))
+      (memq face-prop faces))))
+
+(defun review-starter-text-property-at-point (prop)
+  "Return the value of property PROP at point."
+  (get-text-property (point) prop))
+
+(defun review-starter-comment-p ()
+  "Print \"t\" in minibuffer, if cursor position is inside a comment.
+Otherwise Print nil."
+  (interactive)
+  (message "%s" (review-starter-in-comment-p)))
+
+(define-key review-starter-mode-map (kbd "C-c C-v") 'review-starter-comment-p)
+(define-key review-starter-mode-map (kbd "C-c C-p") 'describe-text-properties)
+
+;; (syntax-ppss POINT) は (parse-partial-sexp (point-min) POINT)
+;; と同等らしい。
+
+;; parse-partial-sexp is a built-in function in 'C source code'.
+
+;; (parse-partial-sexp FROM TO &optional TARGETDEPTH STOPBEFORE OLDSTATE
+;; COMMENTSTOP)
+
+;; Parse Lisp syntax starting at FROM until TO; return status of parse at TO.
+;; Parsing stops at TO or when certain criteria are met;
+;;  point is set to where parsing stops.
+
+;; If OLDSTATE is omitted or nil, parsing assumes that FROM is the
+;;  beginning of a function.  If not, OLDSTATE should be the state at
+;;  FROM.
+
+;; Value is a list of elements describing final state of parsing:
+;;  0. depth in parens.
+;;  1. character address of start of innermost containing list; nil if none.
+;;  2. character address of start of last complete sexp terminated.
+;;  3. non-nil if inside a string.
+;;     (it is the character that will terminate the string,
+;;      or t if the string should be terminated by a generic string delimiter.)
+;;  4. nil if outside a comment, t if inside a non-nestable comment,
+;;     else an integer (the current comment nesting).
+;;  5. t if following a quote character.
+;;  6. the minimum paren-depth encountered during this scan.
+;;  7. style of comment, if any.
+;;  8. character address of start of comment or string; nil if not in one.
+;;  9. List of positions of currently open parens, outermost first.
+;; 10. When the last position scanned holds the first character of a
+;;     (potential) two character construct, the syntax of that position,
+;;     otherwise nil.  That construct can be a two character comment
+;;     delimiter or an Escaped or Char-quoted character.
+;; 11..... Possible further internal information used by 'parse-partial-sexp'.
+
+;; If third arg TARGETDEPTH is non-nil, parsing stops if the depth
+;; in parentheses becomes equal to TARGETDEPTH.
+;; Fourth arg STOPBEFORE non-nil means stop when we come to
+;;  any character that starts a sexp.
+;; Fifth arg OLDSTATE is a list like what this function returns.
+;;  It is used to initialize the state of the parse.  Elements number 1, 2, 6
+;;  are ignored.
+;; Sixth arg COMMENTSTOP non-nil means stop after the start of a comment.
+;;  If it is the symbol 'syntax-table', stop after the start of a comment or a
+;;  string, or after end of a comment or a string.
+
+;;   Probably introduced at or before Emacs version 20.1.
+
 
 (provide 'review-starter-mode)
 ;;; review-starter-mode.el ends here
