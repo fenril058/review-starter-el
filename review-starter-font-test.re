@@ -143,6 +143,9 @@ y = ax + b
  * @<eq>{識別子}
  * @<hd>{ラベルまたは見出し}
  * @<column>{ラベルまたは見出し}
+ * @<fn>{脚注1}
+
+//footnote[脚注1][@<m>$f(x)$はについて]
 
 ==== 索引
 
@@ -193,7 +196,7 @@ Starter 拡張の確認.
 === New Block & Nest Block
 //vspace[6zw]
 
-//note[][ノート]{
+//note[][@<m>$g(x)$のノート]{
 
 //list{
 //}

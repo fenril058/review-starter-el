@@ -85,6 +85,9 @@ Re:VIEWとRe:VIEW Starterの差分となっている命令の幾つかに対し�
 ## カスタマイズの例
 ```
 (setq review-starter-use-expansion nil) ; Re:View Starter拡張を使わない.
+(setq review-starter-block-names '("foo")) ; //foo{ ~ //} という新しいコマンドを追加する.
+(setq review-starter-single-line-block-names '("bar")) //bar という新しいコマンドを追加する.
+(setq review-starter-inline-names '("baz")) @<baz>{ ~ } という新しいコマンドを追加する.
 (setq review-starter-role-name "監訳") ; コメントなどに入れる名前を「監訳」とする.
 (setq review-starter-tip-name "監注") ; 注を入れる際の名称を「監注」とする.
 (setq review-starter-use-whitespace-mode t) ; whitespace-modeを有効にする.
@@ -93,13 +96,13 @@ Re:VIEWとRe:VIEW Starterの差分となっている命令の幾つかに対し�
 ## 今後の予定
 - インラインタグのネスト対応
   - 正規表現では難しい？
-- 存在しないブロック命令に警告色をつけたい.
-  - User定義のブロック命令はつけないようにしないといけない.
 - org-mode.elを参考にした拡張をしたい.
   - `M-RET` (`review-starter-meta-return`) でいい感じに箇条書きや見出しの入力できるようにしたい.
     - これを導入したら`C-c C-p`を廃止したい.
   - `M-Right`, `M-Left`で箇条書きや見出しのレベルを変更できるようにしたい.
   - コードブロックで `` C-c ` ``でその言語に対応したmajor-modeで編集できるようにしたい.
+- `beginning-of-defun-function` と `end-of-defun-function` をちゃんと設定する.
+- Indentをまともにする.
 
 ## ライセンス
 GNU General Public License version 3 (LICENSE を参照してください)
