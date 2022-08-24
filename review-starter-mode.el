@@ -47,7 +47,7 @@
   :prefix "review-starter-"
   :group 'text)
 
-(defconst review-starter-mode-version "0.1.0"
+(defconst review-starter-mode-version "0.2.0"
   "Re:VIEW Starter mode version number.")
 
 (defvar review-starter-default-role-alist
@@ -85,7 +85,6 @@
 (defvar review-starter-standard-single-line-block-names+
   '("vspace" "needvspace")
   "Single line BLock  names added by Re:VIEW Starter.")
-
 
 (defvar review-starter-standard-inline-names
   '("ami"     "b"     "balloon" "bib"
@@ -298,9 +297,64 @@ These have to be run via `review-starter-mode-syntax-propertize'"))
 ;;;
 ;;; Font-Lock support
 ;;;
-(defconst review-starter-regexp-block-begin
-  "\\(^//.+?{\n\\)"
-  "Regular expression for matching the beginning of block.")
+
+(defun review-starter-remove-bracket (string-list)
+  "STRING-LISTから\"[]\"をとってその要素の全てにマッチする正規表現にして返す."
+  (let ((names string-list)
+        (names-wo-paren '())
+        (name))
+    (while names
+      (setq name (pop names))
+      (while (string-match "\\[]" name)
+        (setq name (replace-match "" nil nil name)))
+      (push name names-wo-paren))
+    (regexp-opt names-wo-paren nil)))
+
+(defvar review-starter-regexp-block-begin
+  (concat "^//"
+          (review-starter-remove-bracket
+           (append
+            review-starter-block-names
+            review-starter-standard-block-names
+            ))
+          "\\(?:\\[.*]\\)*?{\n"))
+
+(defvar review-starter-regexp-block-begin+
+  (concat "^//"
+          (review-starter-remove-bracket
+           review-starter-standard-block-names+)
+          "\\(?:\\[.*]\\)*?{\n"))
+
+(defvar review-starter-regexp-single-block
+  (concat "^//"
+          (review-starter-remove-bracket
+           (append
+            review-starter-single-line-block-names
+            review-starter-standard-single-line-block-names
+            ))
+          "\\(?:\\[.*]\\)*?\n"))
+
+(defvar review-starter-regexp-single-block+
+  (concat "^//"
+          (review-starter-remove-bracket
+           review-starter-standard-single-line-block-names+)
+          "\\(?:\\[.*]\\)*\n"))
+
+(defvar review-starter-regexp-inline
+  (concat "\\(@<"
+          (review-starter-remove-bracket
+           (append
+            review-starter-inline-names
+            review-starter-standard-inline-names
+            ))
+          ">\\){.*?[^\\]?}"))
+
+(defvar review-starter-regexp-inline+
+  (concat "\\(@<"
+          (review-starter-remove-bracket
+           review-starter-standard-inline-names+
+           )
+          ">\\){.*?[^\\]?}"))
 
 (defconst review-starter-regexp-block-end
   "\\(^//}$\\)"
@@ -320,142 +374,144 @@ These have to be run via `review-starter-mode-syntax-propertize'"))
   (concat "@<"
           (regexp-opt
            '("chap" "title" "chapref" "list"
-             "img" "table" "eq" "hd" "column"))
+             "img" "table" "eq" "hd" "column"
+             "fn" "bib" "icon"))
           ">{.*?}"))
 
 (defvar review-starter-font-lock-keywords nil
   "Expressions to highlight in Re:VIEW Starter mode.")
 
 (defvar review-starter-font-lock-keywords-default
-`(("^= .*" . 'review-starter-header-face)
-        ("^==\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header1-face)
-        ("^===\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header2-face)
-        ("^====\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header3-face)
-        ("^=====\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header4-face)
-        ("^======\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header5-face)
-        ("^=\\{2,6\\}\\[/column\\]" . 'review-starter-column-end-face)
-        ("^ \\(\*+\\|[0-9]+\\.\\|:\\) " . 'review-starter-list-item-face)
-        ("－" . 'review-starter-fullwidth-hyphen-minus-face)
-        ("−"  . 'review-starter-minus-sign-face)
-        ("‐" . 'review-starter-hyphen-face)
-        ("‒"  . 'review-starter-figure-dash-face)
-        ("–"  . 'review-starter-en-dash-face)
-        ("―" . 'review-starter-em-dash-face)
-        ("―" . 'review-starter-horizontal-bar-face)
-        ("“" . 'review-starter-left-quote-face)
-        ("”" . 'review-starter-right-quote-face)
-        ("‟"  . 'review-starter-reversed-quote-face)
-        ("″" . 'review-starter-double-prime-face)
-        ("\\(@<.+?>{}\\)"
-         (1 'review-starter-inline-tag-face t))
-        ("\\(@<.+?>\\){.+?[^\\]}"
-         (1 'review-starter-inline-tag-face t))
-        ("\\(@<ami>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-ami-face append))
-        ("\\(@<kw>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-keyword-face append))
-        ("\\(@<\\(?:b\\|strong\\|em\\)>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-bold-face append))
-        ("\\(@<i>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-oblique-face append))
-        ("\\(@<bou>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-bold-face append))
-        ("\\(@<u>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-underline-face append))
-        ("\\(@<del>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-strike-through-face append))
-        ("\\(@<uchar>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-uchar-face append))
-        ("\\(@<code>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-code-face append))
-        ("\\(@<tt[bi]?>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-fixed-pitch-face t))
-        ("\\(@<ttb>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-bold-face append))
-        ("\\(@<tti>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-oblique-face prepend))
-        ("\\(@<ins>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-underline-face append))
-        ("@<br>{}" . 'review-starter-br-face)
-        (,review-starter-regexp-reference
-         (0 'review-starter-ref-face t))
-        ("@<idx>{.*?[^\\]}"
-         (0 'review-starter-idx-face t))
-        ("@<hidx>{.*?[^\\]}"
-         (0 'review-starter-hidx-face t))
-        ("@<balloon>{.*?[^\\]}"
-         (0 'review-starter-balloon-face t))
-        ("\\(@<m>{\\)\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-math-face t)
-         (3 'review-starter-inline-tag-face t))
-        ("\\(@<m>\\$\\)\\(.*?\\)\\(\\$\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-math-face t)
-         (3 'review-starter-inline-tag-face t))
-        ("\\(@<m>\|\\)\\(.*?\\)\\(\|\\)"
-         (1 'review-starter-inline-tag-face t)
-         (2 'review-starter-math-face t)
-         (3 'review-starter-inline-tag-face t))
-        ("◆→[^◆]*←◆"
-         (0 'review-starter-warning-face t))
-        ("^#@warn.*"
-         (0 'review-starter-warning-face t))
-        ("^//[^}].+[^{\n]\n"
-         (0 'review-starter-block-face))
-        (,review-starter-regexp-block-begin
-         (0 'review-starter-block-face t))
-        (,review-starter-regexp-block-end
-         (0 'review-starter-block-face t))
-        (,review-starter-regexp-texequation-block
-         (2 'review-starter-math-face t))
-        ("//firstlinenum\\[[0-9]+\\]"
-         (0 'review-starter-block-face))
-        ("\\(//abstract{\n\\)\\(\\(?:.\\|\n\\)*?\\)\\(^//}$\\)"
-         (1 'review-starter-warning-face t)
-         (3 'review-starter-warning-face t))
-        ("\\(@<B>\\){\\(.*?[^\\]\\)\\(}\\)"
-         (1 'review-starter-warning-face t))
-        ("^ -+ \\S\\. " . 'review-starter-warning-face)
-        )
+  `(("^= .*" . 'review-starter-header-face)
+    ("^==\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header1-face)
+    ("^===\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header2-face)
+    ("^====\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header3-face)
+    ("^=====\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header4-face)
+    ("^======\\(\\[.*\\]\\)?\\({.*}\\)? .*" . 'review-starter-header5-face)
+    ("^=\\{2,6\\}\\[/column\\]" . 'review-starter-column-end-face)
+    ("^ \\(\*+\\|[0-9]+\\.\\|:\\) " . 'review-starter-list-item-face)
+    ("－" . 'review-starter-fullwidth-hyphen-minus-face)
+    ("−"  . 'review-starter-minus-sign-face)
+    ("‐" . 'review-starter-hyphen-face)
+    ("‒"  . 'review-starter-figure-dash-face)
+    ("–"  . 'review-starter-en-dash-face)
+    ("―" . 'review-starter-em-dash-face)
+    ("―" . 'review-starter-horizontal-bar-face)
+    ("“" . 'review-starter-left-quote-face)
+    ("”" . 'review-starter-right-quote-face)
+    ("‟"  . 'review-starter-reversed-quote-face)
+    ("″" . 'review-starter-double-prime-face)
+    (,review-starter-regexp-single-block
+     (0 'review-starter-block-face))
+    (,review-starter-regexp-texequation-block
+     (2 'review-starter-math-face t))
+    (,review-starter-regexp-block-begin
+     (0 'review-starter-block-face t))
+    (,review-starter-regexp-block-end
+     (0 'review-starter-block-face t))
+    (,review-starter-regexp-inline
+     (1 'review-starter-inline-tag-face t))
+    ("\\(@<ami>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-ami-face append))
+    ("\\(@<kw>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-keyword-face append))
+    ("\\(@<\\(?:b\\|strong\\|em\\)>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-bold-face append))
+    ("\\(@<i>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-oblique-face append))
+    ("\\(@<bou>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-bold-face append))
+    ("\\(@<u>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-underline-face append))
+    ("\\(@<del>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-strike-through-face append))
+    ("\\(@<uchar>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-uchar-face append))
+    ("\\(@<code>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-code-face append))
+    ("\\(@<tt[bi]?>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-fixed-pitch-face t))
+    ("\\(@<ttb>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-bold-face append))
+    ("\\(@<tti>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-oblique-face prepend))
+    ("\\(@<ins>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-underline-face append))
+    ("@<br>{}"
+     (0 'review-starter-br-face t))
+    (,review-starter-regexp-reference
+     (0 'review-starter-ref-face t))
+    ("@<idx>{.*?[^\\]}"
+     (0 'review-starter-idx-face t))
+    ("@<hidx>{.*?[^\\]}"
+     (0 'review-starter-hidx-face t))
+    ("@<balloon>{.*?[^\\]}"
+     (0 'review-starter-balloon-face t))
+    ("\\(@<m>{\\)\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-math-face t)
+     (3 'review-starter-inline-tag-face t))
+    ("\\(@<m>\\$\\)\\(.*?\\)\\(\\$\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-math-face t)
+     (3 'review-starter-inline-tag-face t))
+    ("\\(@<m>\|\\)\\(.*?\\)\\(\|\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-math-face t)
+     (3 'review-starter-inline-tag-face t))
+    ("◆→[^◆]*←◆"
+     (0 'review-starter-warning-face t))
+    ("^#@warn.*"
+     (0 'review-starter-warning-face t))
+    (,review-starter-regexp-block-begin+
+     (0 'review-starter-warning-face))
+    (,review-starter-regexp-single-block+
+     (0 'review-starter-warning-face))
+    (,review-starter-regexp-inline+
+     (1 'review-starter-warning-face))
+    ("^ -+ \\S\\. "
+     (0 'review-starter-warning-face))
+    )
   "Default expressions to highlight in Re:VIEW Starter mode.
 
 Re:VIEW Starter拡張を含まないfont-lock-keywords.")
 
 (defvar review-starter-font-lock-keywords-default+
-  (append review-starter-font-lock-keywords-default
-          '(("//\\(begin\\|end\\)child\n"
-             (0 'review-starter-warning-face t))
-            ("\\(//abstract{\n\\)\\(\\(?:.\\|\n\\)*?\\)\\(^//}$\\)"
-             (1 'review-starter-block-face t)
-             (3 'review-starter-block-face t))
-            ("\\(@<B>\\){\\(.*?[^\\]\\)\\(}\\)"
-             (1 'review-starter-inline-tag-face t)
-             (2 'review-starter-bold-face append))
-            ("\\(@<term>\\){\\(.*?[^\\]\\)\\(}\\)"
-             (1 'review-starter-inline-tag-face t)
-             (2 'review-starter-keyword-face append))
-            ("^ -+ \\S\\. "
-             (0 'review-starter-list-item-face t))
-            ;; `font-lock-default'のkeyword-onlyがnilでも #@---
-            ;; の # までしか `font-lock-comment-delimiter-face' に
-            ;; ならなかったので追加.
-            ("^#@---"
-             (0 font-lock-comment-delimiter-face t))))
+  `(("^//\\(begin\\|end\\)child\n"
+     (0 'review-starter-warning-face t))
+    (,review-starter-regexp-block-begin+
+     (0 'review-starter-block-face t))
+    (,review-starter-regexp-single-block+
+     (0 'review-starter-block-face t))
+    (,review-starter-regexp-inline+
+     (1 'review-starter-inline-tag-face t))
+    ("\\(@<B>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-bold-face append))
+    ("\\(@<term>\\){\\(.*?[^\\]\\)\\(}\\)"
+     (1 'review-starter-inline-tag-face t)
+     (2 'review-starter-keyword-face append))
+    ("^ -+ \\S\\. "
+     (0 'review-starter-list-item-face t))
+    ;; `font-lock-default'のkeyword-onlyがnilでも #@---
+    ;; の # までしか `font-lock-comment-delimiter-face' に
+    ;; ならなかったので追加.
+    ("^#@---"
+     (0 font-lock-comment-delimiter-face t)))
   "Default expressions to highlight in Re:VIEW Starter mode.
 
 Re:VIEW Starter拡張も含んだfont-lock-keywords.")
@@ -563,7 +619,7 @@ This function was originally derived from
     (setq review-starter-use-expansion t)
     (message "Use Starter Expansion."))
   (when (eq major-mode 'review-starter-mode)
-      (review-starter-mode)))
+    (review-starter-mode)))
 
 (defun review-starter-block (arg)
   "Make Re:VIEW block (//blockname[...][...]{... //} pair).
@@ -1042,11 +1098,11 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
   "DTP担当を変更します."
   (interactive)
   (let ((sub `(lambda (number)
-               "DTP担当変更サブルーチン."
-               (let (list)
-                 (setq list (nth number review-starter-dtp-list))
-                 (setq review-starter-dtp-name list)
-                 (message (concat "現在のDTP: " review-starter-dtp-name)))))
+                "DTP担当変更サブルーチン."
+                (let (list)
+                  (setq list (nth number review-starter-dtp-list))
+                  (setq review-starter-dtp-name list)
+                  (message (concat "現在のDTP: " review-starter-dtp-name)))))
         key message element (list review-starter-dtp-list) (sum 0))
     (while list
       (setq element (car list))
@@ -1249,9 +1305,10 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
 
   ;; Font-lock.
   (setq-local review-starter-font-lock-keywords
-              (if review-starter-use-expansion
-                  review-starter-font-lock-keywords-default+
-                review-starter-font-lock-keywords-default))
+              (append review-starter-font-lock-keywords-default
+                      (when review-starter-use-expansion
+                        review-starter-font-lock-keywords-default+
+                        )))
   (setq-local font-lock-defaults
               '((review-starter-font-lock-keywords)
     	        nil nil nil nil
