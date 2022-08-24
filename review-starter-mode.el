@@ -1083,28 +1083,30 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
     (message "索引にする範囲を選択してください")
     ))
 
-(defun review-starter-page-increment-region (pattern &optional _force start end)
-  "選択領域のページ数を増減する (DTP作業用).
-
-[WiP] 要Refactoring."
-  (interactive "n増減値: \nP\nr")
-  (save-restriction
-    (narrow-to-region start end)
-    (let ((pos (point-min)))
-      (goto-char pos)
-      (while (setq pos (re-search-forward "^\\([0-9][0-9]*\\)\t" nil t))
-        (replace-match
-         (concat (number-to-string
-                  (+ pattern (string-to-number (match-string 1)))) "\t")))))
-  (save-restriction
-    (narrow-to-region start end)
-    (let ((pos (point-min)))
-      (goto-char pos)
-      (while (setq pos (re-search-forward "^p\\.\\([0-9][0-9]*\\) " nil t))
-        (replace-match
-         (concat "p."
-                 (number-to-string
-                  (+ pattern (string-to-number (match-string 1)))) " "))))))
+(defun review-starter-page-increment-region (num)
+  "選択領域のページ数をNUM増減する (DTP作業用)."
+  (interactive "n増減値: \n")
+  (if (region-active-p)
+      (let ((start (region-beginning))
+            (end (region-end)))
+        (save-restriction
+          (narrow-to-region start end)
+          (goto-char (point-min))
+          (while (re-search-forward "^\\([0-9][0-9]*\\)\t" nil t)
+            (replace-match
+             (concat (number-to-string
+                      (+ num (string-to-number (match-string 1))))
+                     "\t"))))
+        (save-restriction
+          (narrow-to-region start end)
+          (goto-char (point-min))
+          (while (re-search-forward "^p\\.\\([0-9][0-9]*\\) " nil t)
+            (replace-match
+             (concat "p."
+                     (number-to-string
+                      (+ num (string-to-number (match-string 1))))
+                     " ")))))
+    (message "Region NOT ACTIVE!")))
 
 (defun review-starter-surround-tt ()
   "カーソル位置から後続の英字記号範囲を選択して等幅化する."
