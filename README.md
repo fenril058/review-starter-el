@@ -7,28 +7,45 @@ and if non-nil, this it supports Re:VIEW Starter.
 
 It was mainly derived from [review-mode.el](https://github.com/kmuto/review-el/).
 
+まだbeta versionなので非互換な更新がされる可能性が高いです.
+
 ## シンタックスハイライトについて
-現状, 存在しないブロック命令やインライン命令に対してもハイライトが行われてしまします.
-また, Re:VIEW Starterでは許されている入れ子のインライン命令をつかうと,
-ハイライトが崩れてしまします.
-
-Re:VIEWとRe:VIEW Starterの差分となっている命令の幾つかに対しては
-`reveiw-starter-use-expansion` がnilかnon-nilかに応じて,
-それぞれの側に存在しない命令には
+Re:VIEWとRe:VIEW Starterの差分となっているコマンドに対しては
+`reveiw-starter-use-expansion` の値に応じて, 存在しないコマンドに
 `review-starter-warning-face` (デフォルトは赤色)
-が適応されるようになっています.  全ての差分に対応できているわけではありません.
+が適応され, まちがいに気が付きやすいようになっています。
 
-## Usage
+ユーザー独自のコマンドに対しては
+`review-starter-block-names`
+`review-starter-single-line-block-names`
+`review-starter-inline-names`
+を設定すればハイライトが可能です。カスタマイズ例を参照ください。
+
+また, Re:VIEW Starterでは許されている入れ子のインライン命令をつかうと,
+多少ハイライトが崩れてしまします.
+
+## カスタマイズ例
+```
+(setq review-starter-use-expansion nil) ; Re:View Starter拡張を使わない.
+(setq review-starter-block-names '("foo")) ; //foo{ ~ //} という新しいコマンドを追加する.
+(setq review-starter-single-line-block-names '("bar")) //bar という新しいコマンドを追加する.
+(setq review-starter-inline-names '("baz")) @<baz>{ ~ } という新しいコマンドを追加する.
+(setq review-starter-role-name "監訳") ; コメントなどに入れる名前を「監訳」とする.
+(setq review-starter-tip-name "監注") ; 注を入れる際の名称を「監注」とする.
+(setq review-starter-use-whitespace-mode t) ; whitespace-modeを有効にする.
+```
+
+## 定義されているコマンドとキーバインド
 まずは, コンパイル, ブロックの挿入, インラインタグの挿入の３つだけで十分便利だと思います.
 
-- コンパイル : `C-c C-c` (`review-starter-compile`) ビルドを実行する。初回実行時は
+- コンパイル : `C-c C-c` (`review-starter-compile`) ビルドを実行する.  初回実行時は
 `review-starter-default-compile-command` (デフォルト値 "rake pdf")が呼ばれ,
 2回め以降は前回実行時のコマンドが履歴に登録される.
 
 - ブロックの挿入, 変更 :
-  - `C-c C-e` (`review-starter-insert-block`) 選択範囲をブロックで囲む.  選択されていない場合は新規に挿入する.
-  - `C-u C-c C-e` (`review-starter-insert-block`) 直前のブロックを変更する.
-  - `C-c C-o` (`review-starter-insert-child-block`) 選択範囲をNest用のブロック(//beginchild ... //endchild) で囲む.  選択されていない場合は新規に挿入する.   Re:VIEW Staterでは使わないので`review-starter-use-starter-expansion`がnilのときだけキーにバンドされる.
+  - `C-c C-e` (`review-starter-block`) 選択範囲をブロックで囲む.  選択されていない場合は新規に挿入する.
+  - `C-u C-c C-e` (`review-starter-block`) 直前のブロックを変更する.
+  - `C-c C-o` (`review-starter-insert-child-block`) 選択範囲をNest用のブロック(//beginchild ... //endchild) で囲む.  選択されていない場合は新規に挿入する.  Re:VIEW Staterでは使わないので`review-starter-use-starter-expansion`がnilのときだけキーにバンドされる.
 
 - インラインタグの挿入 :
   - `C-c C-i` or `C-c C-f C-f` (`'review-starter-inline-region`) 選択範囲をインラインタグで囲む。選択されていない場合は新規に挿入する。
@@ -40,7 +57,7 @@ Re:VIEWとRe:VIEW Starterの差分となっている命令の幾つかに対し�
   - `C-c C-f e` or `C-c C-f C-e` (`review-starter-em-region`) 強調タグ（@\<em\>）で囲む
   - `C-c C-f s` or `C-c C-f C-s` (`review-starter-strong-region`) 強調タグ(@\<strong\>)で囲む
   - `C-c C-f u` or `C-c C-f C-u` (`review-starter-underline-region`) 下線タグ(@\<u\>)で囲む
-  - `C-c C-f t` or `C-c C-f C-t` (`review-starter-em-region`) 等幅タグ(@\<tt\>)で囲む
+  - `C-c C-f t` or `C-c C-f C-t` (`review-starter-tt-region`) 等幅タグ(@\<tt\>)で囲む
   - `C-c C-f a` or `C-c C-f C-a` (`review-starter-underline-italic-region`) 等幅イタリックタグ(@\<tti\>)で囲む
   - `C-c C-f c` or `C-c C-f C-c` (`review-starter-code-region`) コードタグ(@\<code\>)で囲む
   - `C-c C-f h` or `C-c C-f C-h` (`review-starter-hyperlink-region`) ハイパーリンクタグ(@\<href\>)で囲む
@@ -50,7 +67,7 @@ Re:VIEWとRe:VIEW Starterの差分となっている命令の幾つかに対し�
    - `C-c C-w` (`review-starter-insert-index`) 隠し索引(@\<hidx\>)を入れる.  Regionが選択されているか, それがインラインタグの中全てなのかを見て挙動が変わる。詳しくはdoc strigを参照せよ.
 
 - マーカーや作業に関するコマンド :
-  - `C-c C-a` ユーザーから編集者へのメッセージ擬似マーカー.
+  - `C-c C-a` (`review-starter-normal-comment`)ユーザーから編集者へのメッセージ擬似マーカー.
   - `C-c C-k` (`review-starter-tip-comment`) ユーザー注釈の擬似マーカー.
   - `C-c C-d` (`review-starter-dtp-comment`) DTP担当へのメッセージ擬似マーカー.
   - `C-c C-r` (`review-starter-reference-comment`) 参照先をあとで確認する擬似マーカーを挿入する.
@@ -75,34 +92,47 @@ Re:VIEWとRe:VIEW Starterの差分となっている命令の幾つかに対し�
   - `C-c :`    全角：
 
 - その他 :
+  - `C-c C-m` (`review-starter-insert-br`) 強制改行タグの挿入.
   - `C-c C-p` (`review-starter-insert-header`) 見出し挿入.
   - `C-c C-b` (`review-starter-balloon-comment`) 吹き出しを入れる.
   - `C-c <` (`review-starter-opentag`) HTML開きタグを入れる.
   - `C-c >` (`review-starter-closetag`) HTML閉じタグを入れる.
   - `C-c 1` (`review-starter-search-uri`) 直近のURIを検索してブラウザを開く.  Regionが選択されているならその範囲の先頭からURIを探し, それをブラウザで開く.
 
+- ほかにも下記のコマンドが定義されています. 詳しくはDocstringを参照ください.
+  - `review-starter-show-version`
+  - `review-starter-toggle-use-expansion`
+  - `review-starter-index-change`
+  - `review-starter-page-increment-region`
+  - `review-starter-surround-tt`
 
-## カスタマイズの例
-```
-(setq review-starter-use-expansion nil) ; Re:View Starter拡張を使わない.
-(setq review-starter-block-names '("foo")) ; //foo{ ~ //} という新しいコマンドを追加する.
-(setq review-starter-single-line-block-names '("bar")) //bar という新しいコマンドを追加する.
-(setq review-starter-inline-names '("baz")) @<baz>{ ~ } という新しいコマンドを追加する.
-(setq review-starter-role-name "監訳") ; コメントなどに入れる名前を「監訳」とする.
-(setq review-starter-tip-name "監注") ; 注を入れる際の名称を「監注」とする.
-(setq review-starter-use-whitespace-mode t) ; whitespace-modeを有効にする.
-```
-
-## 今後の予定
-- インラインタグのネスト対応
-  - 正規表現では難しい？
-- org-mode.elを参考にした拡張をしたい.
-  - `M-RET` (`review-starter-meta-return`) でいい感じに箇条書きや見出しの入力できるようにしたい.
-    - これを導入したら`C-c C-p`を廃止したい.
-  - `M-Right`, `M-Left`で箇条書きや見出しのレベルを変更できるようにしたい.
-  - コードブロックで `` C-c ` ``でその言語に対応したmajor-modeで編集できるようにしたい.
+## 今後の予定 (メモ.  時が来たらIssuesに書くかも.)
+- 変数や関数名の改善
+  - prefixがreview-starter-は長すぎる気がする.  適切な省略形は？
+  - tagよりはcommandとかcmdのほうがいいかも.
+  - 末尾がregionで終わるコマンドはもう少し適切な名前がありそう.
+- Docstringの充実.
+- Syntax highlighの改善
+  - インラインタグのネスト対応.
+    - Font-lockの正規表現の枠組みでは難しい？
+- Flycheck, Flymake
+  - 今のSyntax highlightでそんなに困らないかも.
 - `beginning-of-defun-function` と `end-of-defun-function` をちゃんと設定する.
-- Indentをまともにする.
+  - `C-M-a`, `C-M-e`で章や節, blockの先頭と末尾に移動できるようにするのが良さそう.
+- Indentation
+  - 実はそんなに問題ないかも？
+- Completion
+  - company-modeとauto-completeのバックエンドを書く?
+  - Eldoc的なものも出せると便利かも.
+- org-mode.elを参考にした拡張.
+  - `M-RET` (`review-starter-meta-return`) でいい感じに箇条書きや見出しの入力できるようにしたい.
+    - これを導入したら`C-c C-p`を廃止する.
+  - `M-<riight>`, `M-<left>`で箇条書きや見出しのレベルを変更できるようにしたい.
+  - `M-<up>`, `M-<down>`で節単位での交換がしたい.
+  - `TAB` (`review-starter-cycle`) で適切な折りたたみを実施したい.
+    - 章, 節での折りたたみは現状のoutline-levelの付け方で大丈夫.
+    - ブロックレベルでの折りたたみの実装は少しむずかしそう.
+  - コードブロックで `` C-c ` ``でその言語に対応したmajor-modeで編集できるようにしたい.
 
 ## ライセンス
 GNU General Public License version 3 (LICENSE を参照してください)

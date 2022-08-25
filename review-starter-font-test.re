@@ -121,7 +121,7 @@ y = ax + b
  * @<strong>{STRONG} : 強調（太字）にします。
  * @<em>{EMPHASIZE} : 強調にします。
  * @<tt>{mono, 等幅} : 等幅にします。
- * @<tti>{等幅＋イタリック, mono +bold} : にします。
+ * @<tti>{等幅＋イタリック, mono + Italic} : にします。
  * @<ttb>{mono + bold} : 等幅＋太字にします。
  * @<code>{nodePaht.get('body.0.expression.callee')} : 等幅にします（コードの引用という性質）。
  * @<tcy>{tategaki} : 縦書きの文書において文字を縦中横にします。
@@ -145,7 +145,7 @@ y = ax + b
  * @<column>{ラベルまたは見出し}
  * @<fn>{脚注1}
 
-//footnote[脚注1][@<m>$f(x)$はについて]
+//footnote[脚注1][@<m>$f(x)$について]
 
 ==== 索引
 
@@ -172,7 +172,7 @@ Starter 拡張の確認.
 
 #@# (review-starter-toggle-use-expansion)
 
-=== New list & Tag
+=== New list
 
  - A. First
  -- B. Second
@@ -182,16 +182,21 @@ Starter 拡張の確認.
  * @<LaTeX>{}
  * @<B>{ゴシック体の太字}
  * @<term>{NEW WORD}
+ * @@<nop>{}<B>{テキスト}
 
-== Nest Inline tag
+=== Nest Inline tag
 
-現状うまくハイライトできていない
+ * @<ruby>{@<b>{foo}}
+ * @<b>{@<i>{bold + italic}}
+ * @<i>{@<b>{italic + bold}}
+ * @<ami>{@<b>{網掛け + 太字}}
+ * @<code>{foo@<b>{bar}} : code中の太字など.
 
- * @<b>{@<i>{italic}}   : 太字にして斜体
- * @<i>{@<b>{italic}}   : 太字にして斜体
- * @<ami>{@<b>{italic}} : 太字にして網掛け
- * @<ami>{@<aaaaa>{italic}} : 太字にして網掛け
- * @<code>{foo@<b>{bar@<large>{x}}}
+現状うまくハイライトできていない例.
+@<aaa>{xxx}という命令がxxxにもfaceをappend設定するケースの場合,
+@<aaa>{@<bbb>{xxx}}と入れ子にすると,
+最初の綴じカッコで両方の命令が閉じる判定されてしまうためおかしなことになる.
+正規表現の限界かもしれない.
 
 === New Block & Nest Block
 //vspace[6zw]
