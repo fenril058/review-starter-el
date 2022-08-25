@@ -184,7 +184,7 @@ Starter 拡張の確認.
  * @<term>{NEW WORD}
  * @@<nop>{}<B>{テキスト}
 
-== Nest Inline tag
+=== Nest Inline tag
 
  * @<ruby>{@<b>{foo}}
  * @<b>{@<i>{bold + italic}}
