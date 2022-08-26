@@ -66,6 +66,15 @@ Re:VIEWとRe:VIEW Starterの差分となっているコマンドに対しては
    - `C-c C-f n` or `C-c C-f C-n` (`review-starter-index-region`) 出力付き索引化(@\<idx\>)する.
    - `C-c C-w` (`review-starter-insert-index`) 隠し索引(@\<hidx\>)を入れる.  Regionが選択されているか, それがインラインタグの中全てなのかを見て挙動が変わる。詳しくはdoc strigを参照せよ.
 
+- Outline系の操作 :
+  - `Tab` (`review-starter-cycle`) もし見出し行にいたら'hide all', 'headings only', 'show all'の順でcycleする.
+  - `S-Tab` (`review-starter-cycle-buffer`) buffer全体を'hide all', 'headings only', 'show all'の順でcycleする.
+  - `M-RET` (`review-starter-insert-heading`) カーソル位置と同レベルの見出しを入力する. 箇条書きの行にいたら箇条書きの次の項目を入力する.
+  - `M-up` (`review-starter-move-subtree-up`) 今いる見出しレベルのツリーをと一つ前に移動する (同レベルの入れ替えのみ).
+  - `M-down` (`review-starter-move-subtree-down`) 今いる見出しレベルのツリーを一つ後ろに移動する (同レベルの入れ替えのみ).
+  - `M-left` (`review-starter-promote`) 見出し行や箇条書きの行にいたらそれを一つ上のレベルにする.
+  - `M-right` (`review-starter-deomote`) 見出し行や箇条書きの行にいたらそれを一つ下のレベルにする.
+
 - マーカーや作業に関するコマンド :
   - `C-c C-a` (`review-starter-normal-comment`)ユーザーから編集者へのメッセージ擬似マーカー.
   - `C-c C-k` (`review-starter-tip-comment`) ユーザー注釈の擬似マーカー.
@@ -107,11 +116,12 @@ Re:VIEWとRe:VIEW Starterの差分となっているコマンドに対しては
   - `review-starter-surround-tt`
 
 ## 今後の予定 (メモ.  時が来たらIssuesに書くかも.)
+- Test codeを書く.
+  - 難しそう.
 - 変数や関数名の改善
   - prefixがreview-starter-は長すぎる気がする.  適切な省略形は？
-  - tagよりはcommandとかcmdのほうがいいかも.
+  - tagよりはcmd (command)、op (operation)のほうがいいかも.
   - 末尾がregionで終わるコマンドはもう少し適切な名前がありそう.
-- Docstringの充実.
 - Syntax highlighの改善
   - インラインタグのネスト対応.
     - Font-lockの正規表現の枠組みでは難しい？
@@ -125,13 +135,6 @@ Re:VIEWとRe:VIEW Starterの差分となっているコマンドに対しては
   - company-modeとauto-completeのバックエンドを書く?
   - Eldoc的なものも出せると便利かも.
 - org-mode.elを参考にした拡張.
-  - `M-RET` (`review-starter-meta-return`) でいい感じに箇条書きや見出しの入力できるようにしたい.
-    - これを導入したら`C-c C-p`を廃止する.
-  - `M-<riight>`, `M-<left>`で箇条書きや見出しのレベルを変更できるようにしたい.
-  - `M-<up>`, `M-<down>`で節単位での交換がしたい.
-  - `TAB` (`review-starter-cycle`) で適切な折りたたみを実施したい.
-    - 章, 節での折りたたみは現状のoutline-levelの付け方で大丈夫.
-    - ブロックレベルでの折りたたみの実装は少しむずかしそう.
   - コードブロックで `` C-c ` ``でその言語に対応したmajor-modeで編集できるようにしたい.
 
 ## ライセンス
