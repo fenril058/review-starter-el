@@ -47,7 +47,7 @@
   :prefix "review-starter-"
   :group 'text)
 
-(defconst review-starter-mode-version "0.2.0"
+(defconst review-starter-mode-version "0.2.1"
   "Re:VIEW Starter mode version number.")
 
 (defvar review-starter-default-role-alist
@@ -1459,8 +1459,8 @@ higher up the tree.  Otherewise call `right-word' with N"
         (define-key map "\C-c\C-o" nil)
       (define-key map "\C-c\C-o" 'review-starter-insert-child-block))
     (when review-starter-use-outline-commands
-      (define-key map "\t" 'review-starter-cycle)
-      (define-key map "<backtab>" 'review-starter-cycle-buffer)
+      (define-key map (kbd "<tab>") 'review-starter-cycle)
+      (define-key map (kbd "<backtab>") 'review-starter-cycle-buffer)
       (define-key map (kbd "M-RET") 'review-starter-insert-heading)
       (define-key map (kbd "M-<down>") 'review-starter-move-subtree-down)
       (define-key map (kbd "M-<up>") 'review-starter-move-subtree-up)
