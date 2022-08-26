@@ -238,6 +238,10 @@ An alternative value is \" . \", if you use a font with a narrow period."
   :type 'string
   :group 'review-starter)
 
+(defcustom review-starter-use-outline-commands t
+  "Whether use outline commnds or not."
+  :type 'boolean
+  :group 'review-starter)
 
 
 ;;;
@@ -538,7 +542,7 @@ See `font-lock-syntactic-face-function' for details."
   "Association list of Re:VIEW header.")
 
 (defvar review-starter-outline-regexp
-  "^\\(=\\{1,5\\}\\)\\(\\[.+?\\]\\)?\\({.+[^\\]}\\)? "
+  "^\\(=\\{1,7\\}\\)\\(\\[.+?\\]\\)?\\({.+[^\\]}\\)? "
   "The regexp matches the outline of Re:VIEW format.
 
 This matches =[nonum], ==[column]{label}, and ==={label} etc.
@@ -1193,6 +1197,39 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
   "Execute rake command."
   (call-interactively 'compile))
 
+(defun review-starter-at-heading-p (&optional _)
+  "Non-nil when on a headline."
+  (outline-on-heading-p t))
+
+(defun review-starter-cycle (&optional arg)
+  ""
+  (interactive "P")
+  (cond
+   ((review-starter-at-heading-p)
+    (outline-cycle))
+   (t
+    (indent-for-tab-command arg))))
+
+(defalias 'review-starter-cycle-buffer 'outline-cycle-buffer)
+(defalias 'review-starter-insert-heading 'outline-insert-heading)
+(defalias 'review-starter-move-subtree-down 'outline-move-subtree-down)
+(defalias 'review-starter-move-subtree-up 'outline-move-subtree-up)
+(defun review-starter-promote (&optional n)
+  (interactive "^p")
+  (if (review-starter-at-heading-p)
+    (save-excursion
+      (beginning-of-line)
+      (when (re-search-forward "^=" nil t)
+        (replace-match ""))
+      )
+    (left-word n)))
+(defun review-starter-demote ()
+  (if (review-starter-at-heading-p)
+    (save-excursion
+     (beginning-of-line)
+     (insert "="))
+    (right-word n)))
+
 
 ;;;
 ;;; Keymap
@@ -1270,7 +1307,8 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
 ;;;
 ;;; Mode Definitions
 ;;;
-(define-derived-mode review-starter-mode text-mode
+
+(define-derived-mode review-starter-mode outline-mode
   (concat
    (if review-starter-use-expansion
        review-starter-mode-name-string+
@@ -1288,6 +1326,7 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
 
   ;; Outline
   (setq-local add-log-current-defun-function #'review-starter-current-defun-name)
+  (setq-local outline-heading-alist review-starter-section-alist)
   (setq-local outline-regexp review-starter-outline-regexp)
   (setq-local outline-level  #'review-starter-outline-level)
 
@@ -1324,9 +1363,19 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
 
   ;; keymap
   (use-local-map review-starter-mode-map)
-  (if review-starter-use-expansion
-      (define-key review-starter-mode-map "\C-c\C-o" nil)
-    (define-key review-starter-mode-map "\C-c\C-o" 'review-starter-insert-child-block))
+  (let ((map review-starter-mode-map))
+    (if review-starter-use-expansion
+        (define-key map "\C-c\C-o" nil)
+      (define-key map "\C-c\C-o" 'review-starter-insert-child-block))
+    (when review-starter-use-outline-commands
+      (define-key map "\t" 'review-starter-cycle)
+      (define-key map "S\t" 'review-starter-cycle-buffer)
+      (define-key map (kbd "M-RET") 'review-starter-insert-heading)
+      (define-key map (kbd "M-<down>") 'review-starter-move-subtree-down)
+      (define-key map (kbd "M-<up>") 'review-starter-move-subtree-up)
+      (define-key map (kbd "M-<left>") 'review-starter-promote)
+      (define-key map (kbd "M-<right>") 'review-starter-demote))
+    )
 
   ;; Misc
   (when review-starter-use-whitespace-mode
