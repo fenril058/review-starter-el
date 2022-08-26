@@ -83,7 +83,7 @@
   "Block names added by Re:VIEW Starter.")
 
 (defvar review-starter-standard-single-line-block-names+
-  '("vspace" "needvspace")
+  '("vspace" "needvspace" "clearpage")
   "Single line BLock  names added by Re:VIEW Starter.")
 
 (defvar review-starter-standard-inline-names
@@ -487,7 +487,7 @@ These have to be run via `review-starter-mode-syntax-propertize'"))
      (0 'review-starter-warning-face))
     (,review-starter-regexp-inline+
      (1 'review-starter-warning-face))
-    ("^ -+ \\S\\. "
+    ("^ -+? .+? "
      (0 'review-starter-warning-face))
     )
   "Default expressions to highlight in Re:VIEW Starter mode.
@@ -509,7 +509,7 @@ Re:VIEW Starter拡張を含まないfont-lock-keywords.")
     ("\\(@<term>\\){\\(.*?[^\\]\\)\\(}\\)"
      (1 'review-starter-inline-tag-face t)
      (2 'review-starter-keyword-face append))
-    ("^ -+ \\S\\. "
+    ("^ -+? .+? "
      (0 'review-starter-list-item-face t))
     ;; `font-lock-default'のkeyword-onlyがnilでも #@---
     ;; の # までしか `font-lock-comment-delimiter-face' に
@@ -1207,6 +1207,18 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
       (beginning-of-line)
       (looking-at "^ \\*+ ")))
 
+(defun review-starter-at-num-list-p (&optional _)
+    "Non-nil when on a list."
+    (save-excursion
+      (beginning-of-line)
+      (looking-at "^ [0-9]+?\\. ")))
+
+(defun review-starter-at-list+-p (&optional _)
+    "Non-nil when on a list."
+    (save-excursion
+      (beginning-of-line)
+      (looking-at "^ -+? .+? ")))
+
 (defun review-starter-cycle (&optional arg)
   "TAB-action and visibility cycling for Re:VIEW Starter mode.
 
@@ -1221,9 +1233,40 @@ If cursor is at heading, then call `outline-cycle' which cycles between
     (indent-for-tab-command arg))))
 
 (defalias 'review-starter-cycle-buffer 'outline-cycle-buffer)
-(defalias 'review-starter-insert-heading 'outline-insert-heading)
+
+(defun review-starter-insert-heading ()
+  "空気を読んでheadingや箇条書きを挿入する."
+  (interactive)
+  (cond
+   ((review-starter-at-list-p)
+    (beginning-of-line)
+    (re-search-forward "^ \\*+? ")
+    (end-of-line)
+    (newline)
+    (insert (match-string 0)))
+   ((review-starter-at-num-list-p)
+    (beginning-of-line)
+    (re-search-forward "^ \\([0-9]+?\\)\\. ")
+    (end-of-line)
+    (newline)
+    (insert (concat " "
+                    (number-to-string
+                     (1+ (string-to-number (match-string 1))))
+                    ". ")))
+   ((and review-starter-use-expansion
+         (review-starter-at-list+-p))
+    (beginning-of-line)
+    (re-search-forward "^ -+? ")
+    (end-of-line)
+    (newline)
+    (insert (match-string 0)))
+   (t
+    (outline-insert-heading))
+   ))
+
 (defalias 'review-starter-move-subtree-down 'outline-move-subtree-down)
 (defalias 'review-starter-move-subtree-up 'outline-move-subtree-up)
+
 (defun review-starter-promote (&optional n)
   "Promote the current heading higher up the tree.
 
@@ -1232,22 +1275,33 @@ higher up the tree.  Otherewise call `left-word' with N"
   (interactive "^p")
   (cond
    ((review-starter-at-heading-p)
-     (save-excursion
+    (save-excursion
       (beginning-of-line)
       (if (re-search-forward "^=" nil t)
           (replace-match "")
         (message "Already Top Level!"))))
    ((review-starter-at-list-p)
-    (if (re-search-forward "^ **" nil t)
-          (replace-match "^ *")
-        (message "Already Top Level!")))
+    (save-excursion
+      (beginning-of-line)
+      (if (re-search-forward "^ \\*\\*" nil t)
+          (replace-match " *")
+        (message "Already Top Level!"))))
+   ((and review-starter-use-expansion
+         (review-starter-at-list+-p))
+    (save-excursion
+      (beginning-of-line)
+      (if (re-search-forward "^ --" nil t)
+          (replace-match " -")
+        (message "Already Top Level!"))))
    (t
     (left-word n))))
-(defun review-starter-demote ()
+
+(defun review-starter-demote (&optional n)
   "Demote the current heading lower down the tree.
 
 If cursor is at heading or list, deomote the the current heading
 higher up the tree.  Otherewise call `right-word' with N"
+  (interactive "^p")
   (cond
    ((review-starter-at-heading-p)
     (save-excursion
@@ -1257,8 +1311,13 @@ higher up the tree.  Otherewise call `right-word' with N"
     (save-excursion
       (beginning-of-line)
       (forward-char)
-      (insert "*"))
-    )
+      (insert "*")))
+   ((and review-starter-use-expansion
+         (review-starter-at-list+-p))
+    (save-excursion
+      (beginning-of-line)
+      (forward-char)
+      (insert "-")))
    (t
     (right-word n))))
 
@@ -1401,7 +1460,7 @@ higher up the tree.  Otherewise call `right-word' with N"
       (define-key map "\C-c\C-o" 'review-starter-insert-child-block))
     (when review-starter-use-outline-commands
       (define-key map "\t" 'review-starter-cycle)
-      (define-key map "S\t" 'review-starter-cycle-buffer)
+      (define-key map "<backtab>" 'review-starter-cycle-buffer)
       (define-key map (kbd "M-RET") 'review-starter-insert-heading)
       (define-key map (kbd "M-<down>") 'review-starter-move-subtree-down)
       (define-key map (kbd "M-<up>") 'review-starter-move-subtree-up)
