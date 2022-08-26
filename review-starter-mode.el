@@ -542,7 +542,7 @@ See `font-lock-syntactic-face-function' for details."
   "Association list of Re:VIEW header.")
 
 (defvar review-starter-outline-regexp
-  "^\\(=\\{1,7\\}\\)\\(\\[.+?\\]\\)?\\({.+[^\\]}\\)? "
+  "^\\(=\\{1,6\\}\\)\\(\\[.+?\\]\\)?\\({.+?[^\\]}\\)? "
   "The regexp matches the outline of Re:VIEW format.
 
 This matches =[nonum], ==[column]{label}, and ==={label} etc.
@@ -1201,8 +1201,18 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
   "Non-nil when on a headline."
   (outline-on-heading-p t))
 
+(defun review-starter-at-list-p (&optional _)
+    "Non-nil when on a list."
+    (save-excursion
+      (beginning-of-line)
+      (looking-at "^ \\*+ ")))
+
 (defun review-starter-cycle (&optional arg)
-  ""
+  "TAB-action and visibility cycling for Re:VIEW Starter mode.
+
+If cursor is at heading, then call `outline-cycle' which cycles between
+'hide all', 'headings only' and 'show all'.  Otherewise, call
+`indent-for-tab-command' with ARG."
   (interactive "P")
   (cond
    ((review-starter-at-heading-p)
@@ -1215,20 +1225,42 @@ DTP担当へのメッセージ疑似マーカーを挿入します."
 (defalias 'review-starter-move-subtree-down 'outline-move-subtree-down)
 (defalias 'review-starter-move-subtree-up 'outline-move-subtree-up)
 (defun review-starter-promote (&optional n)
+  "Promote the current heading higher up the tree.
+
+If cursor is at heading or list, promote the the current heading
+higher up the tree.  Otherewise call `left-word' with N"
   (interactive "^p")
-  (if (review-starter-at-heading-p)
+  (cond
+   ((review-starter-at-heading-p)
+     (save-excursion
+      (beginning-of-line)
+      (if (re-search-forward "^=" nil t)
+          (replace-match "")
+        (message "Already Top Level!"))))
+   ((review-starter-at-list-p)
+    (if (re-search-forward "^ **" nil t)
+          (replace-match "^ *")
+        (message "Already Top Level!")))
+   (t
+    (left-word n))))
+(defun review-starter-demote ()
+  "Demote the current heading lower down the tree.
+
+If cursor is at heading or list, deomote the the current heading
+higher up the tree.  Otherewise call `right-word' with N"
+  (cond
+   ((review-starter-at-heading-p)
     (save-excursion
       (beginning-of-line)
-      (when (re-search-forward "^=" nil t)
-        (replace-match ""))
-      )
-    (left-word n)))
-(defun review-starter-demote ()
-  (if (review-starter-at-heading-p)
+      (insert "=")))
+   ((review-starter-at-list-p)
     (save-excursion
-     (beginning-of-line)
-     (insert "="))
-    (right-word n)))
+      (beginning-of-line)
+      (forward-char)
+      (insert "*"))
+    )
+   (t
+    (right-word n))))
 
 
 ;;;
