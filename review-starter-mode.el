@@ -1399,6 +1399,7 @@ higher up the tree.  Otherewise call `right-word' with N"
 ;;; Mode Definitions
 ;;;
 
+;;;###autoload
 (define-derived-mode review-starter-mode outline-mode
   (concat
    (if review-starter-use-expansion
